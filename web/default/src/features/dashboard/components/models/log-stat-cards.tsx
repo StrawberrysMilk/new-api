@@ -44,6 +44,7 @@ interface LogStatCardsProps {
 }
 
 const MAX_INLINE_STAT_CHARS = 9
+const TOKEN_DISPLAY_MULTIPLIER = 2
 
 function formatStatNumber(value: number, locale: Intl.LocalesArgument) {
   const fullValue = formatNumber(value, locale)
@@ -122,7 +123,11 @@ export function LogStatCards(props: LogStatCardsProps) {
   }
 
   const items = statCardsConfig.map((config) => {
-    const rawValue = config.getValue(adaptedStats, timeRangeMinutes)
+    const rawValue =
+      config.key === 'tokens'
+        ? config.getValue(adaptedStats, timeRangeMinutes) *
+          TOKEN_DISPLAY_MULTIPLIER
+        : config.getValue(adaptedStats, timeRangeMinutes)
     const locale = toIntlLocale(i18n.resolvedLanguage || i18n.language)
     const formatted =
       config.key === 'quota'

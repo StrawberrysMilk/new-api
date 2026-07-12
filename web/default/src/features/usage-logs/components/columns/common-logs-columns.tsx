@@ -68,6 +68,8 @@ interface DetailSegment {
   danger?: boolean
 }
 
+const TOKEN_DISPLAY_MULTIPLIER = 2
+
 function formatRatioCompact(ratio: number | undefined): string {
   if (ratio == null || !Number.isFinite(ratio)) return '-'
   return ratio % 1 === 0
@@ -669,23 +671,30 @@ export function useCommonLogsColumns(isAdmin: boolean): ColumnDef<UsageLog>[] {
         const cacheWriteTokens = hasSplitCache
           ? cacheWrite5m + cacheWrite1h
           : other?.cache_creation_tokens || 0
+        const displayPromptTokens = promptTokens * TOKEN_DISPLAY_MULTIPLIER
+        const displayCompletionTokens =
+          completionTokens * TOKEN_DISPLAY_MULTIPLIER
+        const displayCacheReadTokens =
+          cacheReadTokens * TOKEN_DISPLAY_MULTIPLIER
+        const displayCacheWriteTokens =
+          cacheWriteTokens * TOKEN_DISPLAY_MULTIPLIER
 
         return (
           <div className='flex flex-col gap-0.5'>
             <span className='font-mono text-xs font-medium tabular-nums'>
-              {promptTokens.toLocaleString()} /{' '}
-              {completionTokens.toLocaleString()}
+              {displayPromptTokens.toLocaleString()} /{' '}
+              {displayCompletionTokens.toLocaleString()}
             </span>
             {(cacheReadTokens > 0 || cacheWriteTokens > 0) && (
               <div className='flex items-center gap-1 text-[11px]'>
                 {cacheReadTokens > 0 && (
                   <span className='text-muted-foreground/60'>
-                    {t('Cache')}↓ {cacheReadTokens.toLocaleString()}
+                    {t('Cache')}↓ {displayCacheReadTokens.toLocaleString()}
                   </span>
                 )}
                 {cacheWriteTokens > 0 && (
                   <span className='text-muted-foreground/60'>
-                    ↑ {cacheWriteTokens.toLocaleString()}
+                    ↑ {displayCacheWriteTokens.toLocaleString()}
                   </span>
                 )}
               </div>
