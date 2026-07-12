@@ -99,6 +99,7 @@ const DEFAULT_FLOW_SANKEY_LABELS: FlowSankeyLabels = {
 }
 
 const DEFAULT_FLOW_CHART_COLOR = '#1664FF'
+const TOKEN_DISPLAY_MULTIPLIER = 2
 
 const FLOW_NODE_KINDS: readonly FlowNodeKind[] = [
   'user',
@@ -1099,7 +1100,7 @@ function tooltipMetricLines(
     {
       key: labels.tokens,
       value: (datum: Record<string, unknown>) =>
-        formattedNumber(datum, 'tokens'),
+        formatNumber(metricValue(datum, 'tokens') * TOKEN_DISPLAY_MULTIPLIER),
     },
     {
       key: labels.requests,
