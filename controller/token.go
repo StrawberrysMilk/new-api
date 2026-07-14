@@ -326,6 +326,10 @@ type TokenBatch struct {
 	Ids []int `json:"ids"`
 }
 
+type TokenBatchGroup struct {
+	Group string `json:"group"`
+}
+
 func DeleteTokenBatch(c *gin.Context) {
 	tokenBatch := TokenBatch{}
 	if err := c.ShouldBindJSON(&tokenBatch); err != nil || len(tokenBatch.Ids) == 0 {
@@ -343,6 +347,23 @@ func DeleteTokenBatch(c *gin.Context) {
 		"message": "",
 		"data":    count,
 	})
+}
+
+func UpdateTokenGroupBatch(c *gin.Context) {
+	request := TokenBatchGroup{}
+	if err := c.ShouldBindJSON(&request); err != nil || strings.TrimSpace(request.Group) == "" {
+		common.ApiErrorI18n(c, i18n.MsgInvalidParams)
+		return
+	}
+	request.Group = strings.TrimSpace(request.Group)
+
+	count, err := model.BatchUpdateTokenGroup(c.GetInt("id"), request.Group)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+
+	common.ApiSuccess(c, count)
 }
 
 func GetTokenKeysBatch(c *gin.Context) {

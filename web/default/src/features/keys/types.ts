@@ -105,4 +105,5 @@ export type ApiKeysDialogType =
   | 'update'
   | 'delete'
   | 'batch-delete'
+  | 'batch-group'
   | 'cc-switch'

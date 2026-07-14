@@ -16,6 +16,7 @@ import (
 	"github.com/QuantumNous/new-api/model"
 	"github.com/gin-gonic/gin"
 	"github.com/glebarez/sqlite"
+	"github.com/stretchr/testify/require"
 	"gorm.io/driver/mysql"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -503,6 +504,38 @@ func TestUpdateTokenMasksKeyInResponse(t *testing.T) {
 	if strings.Contains(recorder.Body.String(), token.Key) {
 		t.Fatalf("update response leaked raw token key: %s", recorder.Body.String())
 	}
+}
+
+func TestUpdateTokenGroupBatchOnlyUpdatesCurrentUser(t *testing.T) {
+	db := setupTokenControllerTestDB(t)
+	first := seedToken(t, db, 1, "first-token", "batch1234first5678")
+	second := seedToken(t, db, 1, "second-token", "batch1234second5678")
+	otherUser := seedToken(t, db, 2, "other-token", "batch1234other5678")
+
+	err := db.Model(&model.Token{}).
+		Where("id IN ?", []int{first.Id, second.Id, otherUser.Id}).
+		Update("cross_group_retry", true).Error
+	require.NoError(t, err)
+
+	ctx, recorder := newAuthenticatedContext(t, http.MethodPut, "/api/token/batch/group", map[string]any{
+		"group": "premium",
+	}, 1)
+	UpdateTokenGroupBatch(ctx)
+
+	response := decodeAPIResponse(t, recorder)
+	require.True(t, response.Success, response.Message)
+
+	for _, id := range []int{first.Id, second.Id} {
+		var updated model.Token
+		require.NoError(t, db.First(&updated, id).Error)
+		require.Equal(t, "premium", updated.Group)
+		require.False(t, updated.CrossGroupRetry)
+	}
+
+	var untouched model.Token
+	require.NoError(t, db.First(&untouched, otherUser.Id).Error)
+	require.Equal(t, "default", untouched.Group)
+	require.True(t, untouched.CrossGroupRetry)
 }
 
 func TestGetTokenKeyRequiresOwnershipAndReturnsFullKey(t *testing.T) {

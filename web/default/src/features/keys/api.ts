@@ -90,6 +90,14 @@ export async function batchDeleteApiKeys(
   return res.data
 }
 
+// Update the routing group for all API keys owned by the current user
+export async function batchUpdateApiKeyGroup(
+  group: string
+): Promise<ApiResponse<number>> {
+  const res = await api.put('/api/token/batch/group', { group })
+  return res.data
+}
+
 // Update API key status (enable/disable)
 export async function updateApiKeyStatus(
   id: number,

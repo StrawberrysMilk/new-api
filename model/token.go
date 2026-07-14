@@ -481,6 +481,31 @@ func BatchDeleteTokens(ids []int, userId int) (int, error) {
 	return len(tokens), nil
 }
 
+// BatchUpdateTokenGroup updates the routing group for every token owned by a user.
+func BatchUpdateTokenGroup(userId int, group string) (int64, error) {
+	if userId == 0 {
+		return 0, errors.New("userId 不能为空！")
+	}
+
+	updates := map[string]interface{}{"group": group}
+	if group != "auto" {
+		updates["cross_group_retry"] = false
+	}
+
+	result := DB.Model(&Token{}).Where("user_id = ?", userId).Updates(updates)
+	if result.Error != nil {
+		return 0, result.Error
+	}
+
+	if common.RedisEnabled {
+		if err := InvalidateUserTokensCache(userId); err != nil {
+			common.SysLog("failed to invalidate token cache after batch group update: " + err.Error())
+		}
+	}
+
+	return result.RowsAffected, nil
+}
+
 func GetTokenKeysByIds(ids []int, userId int) ([]Token, error) {
 	var tokens []Token
 	err := DB.Select("id", commonKeyCol).
