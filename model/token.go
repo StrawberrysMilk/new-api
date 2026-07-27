@@ -481,10 +481,30 @@ func BatchDeleteTokens(ids []int, userId int) (int, error) {
 	return len(tokens), nil
 }
 
-// BatchUpdateTokenGroup updates the routing group for every token owned by a user.
-func BatchUpdateTokenGroup(userId int, group string) (int64, error) {
+// BatchUpdateTokenGroupByNameMarker updates the routing group for matching tokens owned by a user.
+func BatchUpdateTokenGroupByNameMarker(userId int, group string, nameMarker string) (int64, error) {
 	if userId == 0 {
 		return 0, errors.New("userId 不能为空！")
+	}
+	if nameMarker == "" {
+		return 0, errors.New("nameMarker 不能为空！")
+	}
+
+	var tokens []Token
+	if err := DB.Select("id", "name").
+		Where("user_id = ? AND name LIKE ?", userId, "%"+nameMarker+"%").
+		Find(&tokens).Error; err != nil {
+		return 0, err
+	}
+
+	ids := make([]int, 0, len(tokens))
+	for _, token := range tokens {
+		if strings.Contains(token.Name, nameMarker) {
+			ids = append(ids, token.Id)
+		}
+	}
+	if len(ids) == 0 {
+		return 0, nil
 	}
 
 	updates := map[string]interface{}{"group": group}
@@ -492,7 +512,9 @@ func BatchUpdateTokenGroup(userId int, group string) (int64, error) {
 		updates["cross_group_retry"] = false
 	}
 
-	result := DB.Model(&Token{}).Where("user_id = ?", userId).Updates(updates)
+	result := DB.Model(&Token{}).
+		Where("user_id = ? AND id IN ?", userId, ids).
+		Updates(updates)
 	if result.Error != nil {
 		return 0, result.Error
 	}
@@ -503,7 +525,7 @@ func BatchUpdateTokenGroup(userId int, group string) (int64, error) {
 		}
 	}
 
-	return result.RowsAffected, nil
+	return int64(len(ids)), nil
 }
 
 func GetTokenKeysByIds(ids []int, userId int) ([]Token, error) {

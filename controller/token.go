@@ -327,7 +327,8 @@ type TokenBatch struct {
 }
 
 type TokenBatchGroup struct {
-	Group string `json:"group"`
+	Group  string `json:"group"`
+	Family string `json:"family"`
 }
 
 func DeleteTokenBatch(c *gin.Context) {
@@ -357,7 +358,18 @@ func UpdateTokenGroupBatch(c *gin.Context) {
 	}
 	request.Group = strings.TrimSpace(request.Group)
 
-	count, err := model.BatchUpdateTokenGroup(c.GetInt("id"), request.Group)
+	var nameMarker string
+	switch request.Family {
+	case "gpt":
+		nameMarker = "-GPT"
+	case "claude":
+		nameMarker = "-Claude"
+	default:
+		common.ApiErrorI18n(c, i18n.MsgInvalidParams)
+		return
+	}
+
+	count, err := model.BatchUpdateTokenGroupByNameMarker(c.GetInt("id"), request.Group, nameMarker)
 	if err != nil {
 		common.ApiError(c, err)
 		return

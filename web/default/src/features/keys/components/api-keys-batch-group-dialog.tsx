@@ -29,6 +29,7 @@ import { getUserGroups } from '@/lib/api'
 
 import { batchUpdateApiKeyGroup } from '../api'
 import { ERROR_MESSAGES } from '../constants'
+import type { ApiKeyFamily } from '../types'
 import {
   ApiKeyGroupCombobox,
   type ApiKeyGroupOption,
@@ -37,6 +38,7 @@ import { useApiKeys } from './api-keys-provider'
 
 type ApiKeysBatchGroupDialogProps = {
   open: boolean
+  family: ApiKeyFamily
   onOpenChange: (open: boolean) => void
 }
 
@@ -44,6 +46,8 @@ export function ApiKeysBatchGroupDialog(props: ApiKeysBatchGroupDialogProps) {
   const { t } = useTranslation()
   const { triggerRefresh } = useApiKeys()
   const [group, setGroup] = useState('')
+  const familyLabel = props.family === 'gpt' ? 'GPT' : 'Claude'
+  const nameMarker = props.family === 'gpt' ? '-GPT' : '-Claude'
 
   const { data: groupsData, isLoading } = useQuery({
     queryKey: ['user-groups'],
@@ -78,15 +82,27 @@ export function ApiKeysBatchGroupDialog(props: ApiKeysBatchGroupDialogProps) {
 
   const updateGroupMutation = useMutation({
     mutationFn: batchUpdateApiKeyGroup,
-    onSuccess: (result, selectedGroup) => {
+    onSuccess: (result, request) => {
       if (!result.success) {
         toast.error(result.message || t(ERROR_MESSAGES.UPDATE_FAILED))
         return
       }
 
+      if (!result.data) {
+        toast.info(
+          t('No API keys with names containing {{marker}} were found.', {
+            marker: nameMarker,
+          })
+        )
+        props.onOpenChange(false)
+        return
+      }
+
       toast.success(
-        t('All API keys switched to group {{group}}', {
-          group: selectedGroup,
+        t('Switched {{count}} {{family}} API key(s) to group {{group}}', {
+          count: result.data,
+          family: familyLabel,
+          group: request.group,
         })
       )
       props.onOpenChange(false)
@@ -98,15 +114,20 @@ export function ApiKeysBatchGroupDialog(props: ApiKeysBatchGroupDialogProps) {
   })
 
   const handleSubmit = () => {
-    if (group) updateGroupMutation.mutate(group)
+    if (group) {
+      updateGroupMutation.mutate({ group, family: props.family })
+    }
   }
 
   return (
     <Dialog
       open={props.open}
       onOpenChange={props.onOpenChange}
-      title={t('Switch all groups')}
-      description={t('Set the same routing group for all API keys.')}
+      title={t('Switch {{family}} groups', { family: familyLabel })}
+      description={t(
+        'Set the same routing group for API keys whose names contain {{marker}}.',
+        { marker: nameMarker }
+      )}
       contentClassName='sm:max-w-lg'
       footer={
         <>
@@ -145,10 +166,13 @@ export function ApiKeysBatchGroupDialog(props: ApiKeysBatchGroupDialogProps) {
 
         <Alert>
           <Layers className='size-4' aria-hidden='true' />
-          <AlertTitle>{t('This affects all API keys')}</AlertTitle>
+          <AlertTitle>
+            {t('This affects {{family}} API keys', { family: familyLabel })}
+          </AlertTitle>
           <AlertDescription>
             {t(
-              'Existing API keys will use the selected group immediately. Other settings remain unchanged.'
+              'Only API keys whose names contain {{marker}} will be updated. Other API keys and settings remain unchanged.',
+              { marker: nameMarker }
             )}
           </AlertDescription>
         </Alert>
