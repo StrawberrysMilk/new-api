@@ -506,36 +506,71 @@ func TestUpdateTokenMasksKeyInResponse(t *testing.T) {
 	}
 }
 
-func TestUpdateTokenGroupBatchOnlyUpdatesCurrentUser(t *testing.T) {
+func TestUpdateTokenGroupBatchFiltersByFamilyAndCurrentUser(t *testing.T) {
 	db := setupTokenControllerTestDB(t)
-	first := seedToken(t, db, 1, "first-token", "batch1234first5678")
-	second := seedToken(t, db, 1, "second-token", "batch1234second5678")
-	otherUser := seedToken(t, db, 2, "other-token", "batch1234other5678")
+	firstGPT := seedToken(t, db, 1, "first-GPT", "batch1234first5678")
+	secondGPT := seedToken(t, db, 1, "second-GPT-backup", "batch1234second5678")
+	claude := seedToken(t, db, 1, "first-Claude", "batch1234claude5678")
+	plain := seedToken(t, db, 1, "plain-token", "batch1234plain5678")
+	otherUserGPT := seedToken(t, db, 2, "other-GPT", "batch1234other5678")
 
 	err := db.Model(&model.Token{}).
-		Where("id IN ?", []int{first.Id, second.Id, otherUser.Id}).
+		Where("id IN ?", []int{firstGPT.Id, secondGPT.Id, claude.Id, plain.Id, otherUserGPT.Id}).
 		Update("cross_group_retry", true).Error
 	require.NoError(t, err)
 
 	ctx, recorder := newAuthenticatedContext(t, http.MethodPut, "/api/token/batch/group", map[string]any{
-		"group": "premium",
+		"group":  "premium",
+		"family": "gpt",
 	}, 1)
 	UpdateTokenGroupBatch(ctx)
 
 	response := decodeAPIResponse(t, recorder)
 	require.True(t, response.Success, response.Message)
+	var updatedCount int64
+	require.NoError(t, common.Unmarshal(response.Data, &updatedCount))
+	require.Equal(t, int64(2), updatedCount)
 
-	for _, id := range []int{first.Id, second.Id} {
+	for _, id := range []int{firstGPT.Id, secondGPT.Id} {
 		var updated model.Token
 		require.NoError(t, db.First(&updated, id).Error)
 		require.Equal(t, "premium", updated.Group)
 		require.False(t, updated.CrossGroupRetry)
 	}
 
-	var untouched model.Token
-	require.NoError(t, db.First(&untouched, otherUser.Id).Error)
-	require.Equal(t, "default", untouched.Group)
-	require.True(t, untouched.CrossGroupRetry)
+	for _, id := range []int{claude.Id, plain.Id, otherUserGPT.Id} {
+		var untouched model.Token
+		require.NoError(t, db.First(&untouched, id).Error)
+		require.Equal(t, "default", untouched.Group)
+		require.True(t, untouched.CrossGroupRetry)
+	}
+
+	claudeCtx, claudeRecorder := newAuthenticatedContext(t, http.MethodPut, "/api/token/batch/group", map[string]any{
+		"group":  "auto",
+		"family": "claude",
+	}, 1)
+	UpdateTokenGroupBatch(claudeCtx)
+	claudeResponse := decodeAPIResponse(t, claudeRecorder)
+	require.True(t, claudeResponse.Success)
+	require.NoError(t, common.Unmarshal(claudeResponse.Data, &updatedCount))
+	require.Equal(t, int64(1), updatedCount)
+
+	var updatedClaude model.Token
+	require.NoError(t, db.First(&updatedClaude, claude.Id).Error)
+	require.Equal(t, "auto", updatedClaude.Group)
+	require.True(t, updatedClaude.CrossGroupRetry)
+}
+
+func TestUpdateTokenGroupBatchRejectsUnknownFamily(t *testing.T) {
+	setupTokenControllerTestDB(t)
+	ctx, recorder := newAuthenticatedContext(t, http.MethodPut, "/api/token/batch/group", map[string]any{
+		"group":  "premium",
+		"family": "other",
+	}, 1)
+
+	UpdateTokenGroupBatch(ctx)
+
+	require.False(t, decodeAPIResponse(t, recorder).Success)
 }
 
 func TestGetTokenKeyRequiresOwnershipAndReturnsFullKey(t *testing.T) {

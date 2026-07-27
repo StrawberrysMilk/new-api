@@ -96,6 +96,13 @@ export interface ApiKeyFormData {
   cross_group_retry: boolean
 }
 
+export type ApiKeyFamily = 'gpt' | 'claude'
+
+export interface BatchUpdateApiKeyGroupRequest {
+  group: string
+  family: ApiKeyFamily
+}
+
 // ============================================================================
 // Dialog Types
 // ============================================================================
@@ -105,5 +112,6 @@ export type ApiKeysDialogType =
   | 'update'
   | 'delete'
   | 'batch-delete'
-  | 'batch-group'
+  | 'batch-group-gpt'
+  | 'batch-group-claude'
   | 'cc-switch'

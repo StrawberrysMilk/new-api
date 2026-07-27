@@ -25,6 +25,7 @@ import type {
   GetApiKeysResponse,
   SearchApiKeysParams,
   ApiKeyFormData,
+  BatchUpdateApiKeyGroupRequest,
 } from './types'
 
 // ============================================================================
@@ -90,11 +91,11 @@ export async function batchDeleteApiKeys(
   return res.data
 }
 
-// Update the routing group for all API keys owned by the current user
+// Update the routing group for API keys in one name-based family
 export async function batchUpdateApiKeyGroup(
-  group: string
+  request: BatchUpdateApiKeyGroupRequest
 ): Promise<ApiResponse<number>> {
-  const res = await api.put('/api/token/batch/group', { group })
+  const res = await api.put('/api/token/batch/group', request)
   return res.data
 }
 
