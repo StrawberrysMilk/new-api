@@ -10,8 +10,27 @@ import (
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/logger"
 	"github.com/QuantumNous/new-api/model"
+	relaycommon "github.com/QuantumNous/new-api/relay/common"
+	"github.com/gin-gonic/gin"
 	"github.com/go-redis/redis/v8"
 )
+
+// emitDailyQuotaLimitStreamError reports a late settlement limit violation to
+// clients that already have an SSE response. HTTP status cannot be changed
+// after streaming starts, so use an OpenAI-compatible data error event.
+func emitDailyQuotaLimitStreamError(c *gin.Context, relayInfo *relaycommon.RelayInfo, err error) {
+	if err == nil || relayInfo == nil || !relayInfo.IsStream || !strings.Contains(err.Error(), "每日消费限额") || c == nil || c.Writer == nil {
+		return
+	}
+	payload := fmt.Sprintf(`{"error":{"message":%q,"type":"daily_quota_limit"}}`, err.Error())
+	if _, writeErr := c.Writer.Write([]byte("data: " + payload + "\n\n")); writeErr != nil {
+		common.SysLog("error writing daily quota limit SSE event: " + writeErr.Error())
+		return
+	}
+	if flusher, ok := c.Writer.(interface{ Flush() }); ok {
+		flusher.Flush()
+	}
+}
 
 const tokenDailyQuotaKeyTTL = 48 * time.Hour
 
@@ -63,6 +82,8 @@ local limit = tonumber(ARGV[2])
 local ttl = tonumber(ARGV[3])
 local current = tonumber(redis.call("GET", key) or "0")
 if current + delta > limit then
+  redis.call("SET", key, limit)
+  redis.call("EXPIRE", key, ttl)
   return redis.error_reply("daily_quota_limit_exceeded")
 end
 current = redis.call("INCRBY", key, delta)
@@ -124,6 +145,11 @@ func reserveTokenDailyQuotaInMemory(tokenID int, dailyLimit int, quota int) erro
 		entry.deadline = deadline
 	}
 	if entry.quota+quota > dailyLimit {
+		// The actual settlement may exceed the amount reserved before the
+		// upstream response. Mark the key exhausted so the next request is
+		// rejected before it reaches the upstream provider.
+		entry.quota = dailyLimit
+		entry.deadline = deadline
 		return newTokenDailyQuotaLimitError(dailyLimit)
 	}
 	entry.quota += quota
