@@ -96,7 +96,7 @@ export interface ApiKeyFormData {
   cross_group_retry: boolean
 }
 
-export type ApiKeyFamily = 'gpt' | 'claude'
+export type ApiKeyFamily = 'gpt' | 'claude' | 'domestic'
 
 export interface BatchUpdateApiKeyGroupRequest {
   group: string
@@ -114,4 +114,5 @@ export type ApiKeysDialogType =
   | 'batch-delete'
   | 'batch-group-gpt'
   | 'batch-group-claude'
+  | 'batch-group-domestic'
   | 'cc-switch'

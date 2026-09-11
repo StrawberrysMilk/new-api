@@ -25,8 +25,15 @@ import { CCSwitchDialog } from './dialogs/cc-switch-dialog'
 export function ApiKeysDialogs() {
   const { open, setOpen, currentRow, resolvedKey } = useApiKeys()
   const batchGroupOpen =
-    open === 'batch-group-gpt' || open === 'batch-group-claude'
-  const batchGroupFamily = open === 'batch-group-claude' ? 'claude' : 'gpt'
+    open === 'batch-group-gpt' ||
+    open === 'batch-group-claude' ||
+    open === 'batch-group-domestic'
+  const batchGroupFamily =
+    open === 'batch-group-claude'
+      ? 'claude'
+      : open === 'batch-group-domestic'
+        ? 'domestic'
+        : 'gpt'
 
   return (
     <>

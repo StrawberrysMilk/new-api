@@ -4347,6 +4347,7 @@
     "Swap Face": "换脸",
     "Switch affinity on success": "成功后切换亲和",
     "Switch Claude groups": "统一切换 Claude 分组",
+    "Switch domestic groups": "统一切换国模分组",
     "Switch GPT groups": "统一切换 GPT 分组",
     "Switch {{family}} groups": "统一切换 {{family}} 分组",
     "Switch between the new frontend and the classic frontend. Changes take effect after page reload.": "切换新版前端和经典前端，保存后刷新页面生效。",

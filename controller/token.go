@@ -364,6 +364,8 @@ func UpdateTokenGroupBatch(c *gin.Context) {
 		nameMarker = "-GPT"
 	case "claude":
 		nameMarker = "-Claude"
+	case "domestic":
+		nameMarker = "-国模"
 	default:
 		common.ApiErrorI18n(c, i18n.MsgInvalidParams)
 		return

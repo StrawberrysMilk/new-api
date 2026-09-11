@@ -46,8 +46,13 @@ export function ApiKeysBatchGroupDialog(props: ApiKeysBatchGroupDialogProps) {
   const { t } = useTranslation()
   const { triggerRefresh } = useApiKeys()
   const [group, setGroup] = useState('')
-  const familyLabel = props.family === 'gpt' ? 'GPT' : 'Claude'
-  const nameMarker = props.family === 'gpt' ? '-GPT' : '-Claude'
+  const familyConfig = {
+    gpt: { label: 'GPT', marker: '-GPT' },
+    claude: { label: 'Claude', marker: '-Claude' },
+    domestic: { label: '国模', marker: '-国模' },
+  }[props.family]
+  const familyLabel = familyConfig.label
+  const nameMarker = familyConfig.marker
 
   const { data: groupsData, isLoading } = useQuery({
     queryKey: ['user-groups'],

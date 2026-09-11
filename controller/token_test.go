@@ -511,11 +511,12 @@ func TestUpdateTokenGroupBatchFiltersByFamilyAndCurrentUser(t *testing.T) {
 	firstGPT := seedToken(t, db, 1, "first-GPT", "batch1234first5678")
 	secondGPT := seedToken(t, db, 1, "second-GPT-backup", "batch1234second5678")
 	claude := seedToken(t, db, 1, "first-Claude", "batch1234claude5678")
+	domestic := seedToken(t, db, 1, "first-国模", "batch1234domestic5678")
 	plain := seedToken(t, db, 1, "plain-token", "batch1234plain5678")
 	otherUserGPT := seedToken(t, db, 2, "other-GPT", "batch1234other5678")
 
 	err := db.Model(&model.Token{}).
-		Where("id IN ?", []int{firstGPT.Id, secondGPT.Id, claude.Id, plain.Id, otherUserGPT.Id}).
+		Where("id IN ?", []int{firstGPT.Id, secondGPT.Id, claude.Id, domestic.Id, plain.Id, otherUserGPT.Id}).
 		Update("cross_group_retry", true).Error
 	require.NoError(t, err)
 
@@ -538,7 +539,7 @@ func TestUpdateTokenGroupBatchFiltersByFamilyAndCurrentUser(t *testing.T) {
 		require.False(t, updated.CrossGroupRetry)
 	}
 
-	for _, id := range []int{claude.Id, plain.Id, otherUserGPT.Id} {
+	for _, id := range []int{claude.Id, domestic.Id, plain.Id, otherUserGPT.Id} {
 		var untouched model.Token
 		require.NoError(t, db.First(&untouched, id).Error)
 		require.Equal(t, "default", untouched.Group)
@@ -559,6 +560,21 @@ func TestUpdateTokenGroupBatchFiltersByFamilyAndCurrentUser(t *testing.T) {
 	require.NoError(t, db.First(&updatedClaude, claude.Id).Error)
 	require.Equal(t, "auto", updatedClaude.Group)
 	require.True(t, updatedClaude.CrossGroupRetry)
+
+	domesticCtx, domesticRecorder := newAuthenticatedContext(t, http.MethodPut, "/api/token/batch/group", map[string]any{
+		"group":  "domestic",
+		"family": "domestic",
+	}, 1)
+	UpdateTokenGroupBatch(domesticCtx)
+	domesticResponse := decodeAPIResponse(t, domesticRecorder)
+	require.True(t, domesticResponse.Success)
+	require.NoError(t, common.Unmarshal(domesticResponse.Data, &updatedCount))
+	require.Equal(t, int64(1), updatedCount)
+
+	var updatedDomestic model.Token
+	require.NoError(t, db.First(&updatedDomestic, domestic.Id).Error)
+	require.Equal(t, "domestic", updatedDomestic.Group)
+	require.False(t, updatedDomestic.CrossGroupRetry)
 }
 
 func TestUpdateTokenGroupBatchRejectsUnknownFamily(t *testing.T) {
