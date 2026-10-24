@@ -27,7 +27,6 @@ import {
   ListTodo,
   MessageSquare,
   Radio,
-  Radar,
   ServerCog,
   Settings,
   Ticket,
@@ -37,7 +36,7 @@ import {
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
-import { type SidebarData } from '@/components/layout/types'
+import type { SidebarData } from '@/components/layout/types'
 import { ROLE } from '@/lib/roles'
 
 /**
@@ -124,11 +123,6 @@ export function useSidebarData(): SidebarData {
             title: t('Channels'),
             url: '/channels',
             icon: Radio,
-          },
-          {
-            title: t('Link Monitoring'),
-            url: '/link-monitor',
-            icon: Radar,
           },
           {
             title: t('Models'),
