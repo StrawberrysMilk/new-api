@@ -44,6 +44,11 @@ type tokenResponse struct {
 	AutoGroups []string `json:"auto_groups"`
 }
 
+type TokenBatchGroup struct {
+	Group  string `json:"group"`
+	Family string `json:"family"`
+}
+
 func maxTokenQuota() int {
 	quota, err := common.WalletQuotaFromDecimalStrict(
 		decimal.NewFromInt(1_000_000_000).Mul(decimal.NewFromFloat(common.QuotaPerUnit)),
@@ -539,6 +544,30 @@ func DeleteTokenBatch(c *gin.Context) {
 		"message": "",
 		"data":    count,
 	})
+}
+
+func UpdateTokenGroupBatch(c *gin.Context) {
+	request := TokenBatchGroup{}
+	if err := c.ShouldBindJSON(&request); err != nil || strings.TrimSpace(request.Group) == "" {
+		common.ApiErrorT(c, "Invalid parameters")
+		return
+	}
+	request.Group = strings.TrimSpace(request.Group)
+	markers := map[string]string{
+		"gpt": "-GPT", "claude": "-Claude", "domestic": "-国模",
+		"gemini": "-Gemini", "grok": "-Grok",
+	}
+	nameMarker, ok := markers[request.Family]
+	if !ok {
+		common.ApiErrorT(c, "Invalid parameters")
+		return
+	}
+	count, err := model.BatchUpdateTokenGroupByNameMarker(c.GetInt("id"), request.Group, nameMarker)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	common.ApiSuccess(c, count)
 }
 
 func GetTokenKeysBatch(c *gin.Context) {

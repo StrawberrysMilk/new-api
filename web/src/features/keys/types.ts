@@ -103,6 +103,8 @@ export interface TokenAutoGroupsConfig {
   max_count: number
 }
 
+export type ApiKeyFamily = 'gpt' | 'claude' | 'domestic' | 'gemini' | 'grok'
+
 // ============================================================================
 // Dialog Types
 // ============================================================================
@@ -112,4 +114,9 @@ export type ApiKeysDialogType =
   | 'update'
   | 'delete'
   | 'batch-delete'
+  | 'batch-group-gpt'
+  | 'batch-group-claude'
+  | 'batch-group-domestic'
+  | 'batch-group-gemini'
+  | 'batch-group-grok'
   | 'cc-switch'

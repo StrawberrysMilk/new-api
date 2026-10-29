@@ -26,6 +26,7 @@ import type {
   SearchApiKeysParams,
   ApiKeyFormData,
   TokenAutoGroupsConfig,
+  ApiKeyFamily,
 } from './types'
 
 // ============================================================================
@@ -96,6 +97,14 @@ export async function batchDeleteApiKeys(
   ids: number[]
 ): Promise<ApiResponse<number>> {
   const res = await api.post('/api/token/batch', { ids })
+  return res.data
+}
+
+export async function batchUpdateApiKeyGroup(request: {
+  group: string
+  family: ApiKeyFamily
+}): Promise<ApiResponse<number>> {
+  const res = await api.put('/api/token/batch/group', request)
   return res.data
 }
 

@@ -16,7 +16,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { ChevronDown, Globe, Plus } from 'lucide-react'
+import { Bot, BrainCircuit, ChevronDown, Globe, Globe2, Plus, Sparkles, Zap } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 import { CopyButton } from '@/components/copy-button'
@@ -62,6 +62,11 @@ export function ApiKeysPrimaryButtons() {
 
   return (
     <div className='flex flex-wrap gap-2'>
+      <Button size='sm' variant='outline' onClick={() => setOpen('batch-group-gpt')}><Bot aria-hidden='true' />{t('GPT 分组')}</Button>
+      <Button size='sm' variant='outline' onClick={() => setOpen('batch-group-claude')}><BrainCircuit aria-hidden='true' />{t('Claude 分组')}</Button>
+      <Button size='sm' variant='outline' onClick={() => setOpen('batch-group-domestic')}><Globe2 aria-hidden='true' />{t('国模分组')}</Button>
+      <Button size='sm' variant='outline' onClick={() => setOpen('batch-group-gemini')}><Sparkles aria-hidden='true' />{t('Gemini 分组')}</Button>
+      <Button size='sm' variant='outline' onClick={() => setOpen('batch-group-grok')}><Zap aria-hidden='true' />{t('Grok 分组')}</Button>
       <Popover>
         <PopoverTrigger render={<Button variant='outline' size='sm' />}>
           <Globe aria-hidden='true' />

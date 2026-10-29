@@ -17,12 +17,15 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { ApiKeysDeleteDialog } from './api-keys-delete-dialog'
+import { ApiKeysBatchGroupDialog } from './api-keys-batch-group-dialog'
 import { ApiKeysMutateDrawer } from './api-keys-mutate-drawer'
 import { useApiKeys } from './api-keys-provider'
 import { CCSwitchDialog } from './dialogs/cc-switch-dialog'
 
 export function ApiKeysDialogs() {
   const { open, setOpen, currentRow, resolvedKey } = useApiKeys()
+  const batchGroupOpen = open?.startsWith('batch-group-') ?? false
+  const batchGroupFamily = open === 'batch-group-claude' ? 'claude' : open === 'batch-group-domestic' ? 'domestic' : open === 'batch-group-gemini' ? 'gemini' : open === 'batch-group-grok' ? 'grok' : 'gpt'
 
   return (
     <>
@@ -32,6 +35,7 @@ export function ApiKeysDialogs() {
         currentRow={open === 'update' ? currentRow || undefined : undefined}
       />
       <ApiKeysDeleteDialog />
+      <ApiKeysBatchGroupDialog open={batchGroupOpen} family={batchGroupFamily} onOpenChange={(isOpen) => !isOpen && setOpen(null)} />
       <CCSwitchDialog
         open={open === 'cc-switch'}
         onOpenChange={(isOpen) => !isOpen && setOpen(null)}
