@@ -16,16 +16,25 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
+import type { ApiKeyFamily, ApiKeysDialogType } from '../types'
+
 import { ApiKeysDeleteDialog } from './api-keys-delete-dialog'
 import { ApiKeysBatchGroupDialog } from './api-keys-batch-group-dialog'
 import { ApiKeysMutateDrawer } from './api-keys-mutate-drawer'
 import { useApiKeys } from './api-keys-provider'
 import { CCSwitchDialog } from './dialogs/cc-switch-dialog'
+const batchGroupFamilyByDialog: Partial<Record<ApiKeysDialogType, ApiKeyFamily>> = {
+  'batch-group-gpt': 'gpt',
+  'batch-group-claude': 'claude',
+  'batch-group-domestic': 'domestic',
+  'batch-group-gemini': 'gemini',
+  'batch-group-grok': 'grok',
+}
 
 export function ApiKeysDialogs() {
   const { open, setOpen, currentRow, resolvedKey } = useApiKeys()
   const batchGroupOpen = open?.startsWith('batch-group-') ?? false
-  const batchGroupFamily = open === 'batch-group-claude' ? 'claude' : open === 'batch-group-domestic' ? 'domestic' : open === 'batch-group-gemini' ? 'gemini' : open === 'batch-group-grok' ? 'grok' : 'gpt'
+  const batchGroupFamily = (open && batchGroupFamilyByDialog[open]) || 'gpt'
 
   return (
     <>
