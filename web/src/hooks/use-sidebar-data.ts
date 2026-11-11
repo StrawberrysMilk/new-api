@@ -25,6 +25,7 @@ import {
   FlaskConical,
   Key,
   LayoutDashboard,
+  Images,
   ListTodo,
   MessageSquare,
   PlugZap,
@@ -40,6 +41,7 @@ import {
 import { useTranslation } from 'react-i18next'
 
 import type { SidebarBadges, SidebarData } from '@/components/layout/types'
+import { useMediaWorkbenchConfig } from '@/features/media-workbench/use-config'
 import { ROLE } from '@/lib/roles'
 
 /**
@@ -50,6 +52,7 @@ import { ROLE } from '@/lib/roles'
  */
 export function useSidebarData(badges: SidebarBadges = {}): SidebarData {
   const { t } = useTranslation()
+  const mediaWorkbench = useMediaWorkbenchConfig()
 
   return {
     navGroups: [
@@ -105,6 +108,9 @@ export function useSidebarData(badges: SidebarBadges = {}): SidebarData {
             configUrls: ['/usage-logs/drawing', '/usage-logs/task'],
             icon: ListTodo,
           },
+          ...(mediaWorkbench.data?.enabled
+            ? [{ title: t('Media Workbench'), url: '/media-workbench', icon: Images }]
+            : []),
         ],
       },
       {

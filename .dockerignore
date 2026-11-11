@@ -10,3 +10,17 @@ docs
 /web/node_modules
 /web/dist
 !THIRD-PARTY-LICENSES.md
+
+# Local deployment archives and runtime binaries are not build inputs.
+*.tar
+*.tar.gz
+.runtime
+
+# Runtime data, local tooling, and dependency caches are not image inputs.
+data
+logs
+.git
+.agents
+.idea
+node_modules
+web/node_modules
