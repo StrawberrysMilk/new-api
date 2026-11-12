@@ -37,6 +37,7 @@ type tokenRequest struct {
 	AutoGroups tokenAutoGroupsInput `json:"auto_groups"`
 	// 指针区分“未传”和显式 false：新建时未传即开启，更新时未传则保留原值。
 	AllowUserQuotaQuery *bool `json:"allow_user_quota_query"`
+	DailyQuotaLimit     *int  `json:"daily_quota_limit"`
 }
 
 type tokenResponse struct {
@@ -309,6 +310,13 @@ func AddToken(c *gin.Context) {
 		return
 	}
 	token := request.Token
+	if request.DailyQuotaLimit != nil {
+		token.DailyQuotaLimit = *request.DailyQuotaLimit
+	}
+	if token.DailyQuotaLimit < 0 || token.DailyQuotaLimit > maxTokenQuota() {
+		common.ApiErrorT(c, "Daily spending limit is outside the valid range")
+		return
+	}
 	if len(token.Name) > 50 {
 		common.ApiErrorT(c, "Token name is too long")
 		return
@@ -361,6 +369,7 @@ func AddToken(c *gin.Context) {
 		ExpiredTime:        token.ExpiredTime,
 		RemainQuota:        token.RemainQuota,
 		UnlimitedQuota:     token.UnlimitedQuota,
+		DailyQuotaLimit:    token.DailyQuotaLimit,
 		ModelLimitsEnabled: token.ModelLimitsEnabled,
 		ModelLimits:        token.ModelLimits,
 		AllowIps:           token.AllowIps,
@@ -458,6 +467,13 @@ func UpdateToken(c *gin.Context) {
 		cleanToken.ExpiredTime = token.ExpiredTime
 		cleanToken.RemainQuota = token.RemainQuota
 		cleanToken.UnlimitedQuota = token.UnlimitedQuota
+		if request.DailyQuotaLimit != nil {
+			if *request.DailyQuotaLimit < 0 || *request.DailyQuotaLimit > maxTokenQuota() {
+				common.ApiErrorT(c, "Daily spending limit is outside the valid range")
+				return
+			}
+			cleanToken.DailyQuotaLimit = *request.DailyQuotaLimit
+		}
 		cleanToken.ModelLimitsEnabled = token.ModelLimitsEnabled
 		cleanToken.ModelLimits = token.ModelLimits
 		cleanToken.AllowIps = token.AllowIps
@@ -493,6 +509,7 @@ func UpdateToken(c *gin.Context) {
 			{"expired_time", previous.ExpiredTime != cleanToken.ExpiredTime},
 			{"remain_quota", previous.RemainQuota != cleanToken.RemainQuota},
 			{"unlimited_quota", previous.UnlimitedQuota != cleanToken.UnlimitedQuota},
+			{"daily_quota_limit", previous.DailyQuotaLimit != cleanToken.DailyQuotaLimit},
 			{"model_limits_enabled", previous.ModelLimitsEnabled != cleanToken.ModelLimitsEnabled},
 			{"model_limits", previous.ModelLimits != cleanToken.ModelLimits},
 			{"allow_ips", (previous.AllowIps == nil) != (cleanToken.AllowIps == nil) ||

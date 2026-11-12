@@ -114,6 +114,7 @@ func TestAddTokenPersistsOrderedAutoGroupsSnapshot(t *testing.T) {
 	user := setupTokenAutoGroupsControllerTest(t)
 	request := baseAutoTokenRequest("ordered-snapshot")
 	request["auto_groups"] = []string{"vip", "default"}
+	request["daily_quota_limit"] = 500
 
 	ctx, recorder := newTokenAutoGroupsAuthenticatedContext(t, http.MethodPost, "/api/token/", request, user.Id)
 	AddToken(ctx)
@@ -122,6 +123,7 @@ func TestAddTokenPersistsOrderedAutoGroupsSnapshot(t *testing.T) {
 	var token model.Token
 	require.NoError(t, model.DB.Where("name = ?", "ordered-snapshot").First(&token).Error)
 	assert.JSONEq(t, `["vip","default"]`, token.AutoGroups)
+	assert.Equal(t, 500, token.DailyQuotaLimit)
 
 	getCtx, getRecorder := newTokenAutoGroupsAuthenticatedContext(t, http.MethodGet, "/api/token/"+stringInt(token.Id), nil, user.Id)
 	getCtx.Params = append(getCtx.Params, gin.Param{Key: "id", Value: stringInt(token.Id)})
@@ -157,6 +159,7 @@ func TestUpdateTokenAutoGroupsTriStateAndNonAutoCleanup(t *testing.T) {
 			token := seedToken(t, model.DB, user.Id, "update-auto", "update-auto-key")
 			token.Group = "auto"
 			token.CrossGroupRetry = true
+			token.DailyQuotaLimit = 500
 			require.NoError(t, token.SetAutoGroups([]string{"vip", "default"}))
 			require.NoError(t, model.DB.Save(token).Error)
 
@@ -180,6 +183,13 @@ func TestUpdateTokenAutoGroupsTriStateAndNonAutoCleanup(t *testing.T) {
 				assert.JSONEq(t, test.expectedAutoGroups, updated.AutoGroups)
 			}
 			assert.Equal(t, test.expectedRetry, updated.CrossGroupRetry)
+			assert.Equal(t, 500, updated.DailyQuotaLimit, "old clients must preserve the daily limit when omitting the field")
+			request["daily_quota_limit"] = 0
+			ctx, recorder = newTokenAutoGroupsAuthenticatedContext(t, http.MethodPut, "/api/token/", request, user.Id)
+			UpdateToken(ctx)
+			require.True(t, decodeAPIResponse(t, recorder).Success)
+			require.NoError(t, model.DB.First(&updated, token.Id).Error)
+			assert.Zero(t, updated.DailyQuotaLimit)
 		})
 	}
 }

@@ -86,6 +86,9 @@ func calculateAudioQuota(info QuotaInfo) (int, *common.QuotaClamp) {
 }
 
 func PreWssConsumeQuota(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, usage *dto.RealtimeUsage) error {
+	if err := reserveTokenDailyQuota(relayInfo, 0); err != nil {
+		return err
+	}
 	if relayInfo.UsePrice {
 		return nil
 	}
@@ -436,6 +439,15 @@ func PostConsumeQuota(relayInfo *relaycommon.RelayInfo, quota int, preConsumedQu
 }
 
 func postConsumeQuotaWithResult(relayInfo *relaycommon.RelayInfo, quota int, preConsumedQuota int, sendEmail bool) (result postConsumeQuotaResult, err error) {
+	// These are post-consumption adjustments: charge delivered usage in full,
+	// including costs above a daily estimate, and let admission reject new work.
+	defer func() {
+		if result.FundingApplied {
+			if refundErr := adjustTokenDailyQuota(relayInfo, quota); refundErr != nil && err == nil {
+				err = refundErr
+			}
+		}
+	}()
 
 	// 1) Consume from wallet quota OR subscription item
 	if relayInfo != nil && relayInfo.BillingSource == BillingSourceSubscription {

@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/constant"
@@ -642,6 +643,18 @@ func TokenAuth() func(c *gin.Context) {
 		if err != nil {
 			return
 		}
+		if token.DailyQuotaLimit > 0 {
+			err = model.ReserveTokenDailyQuota(token.Id, time.Now().Format("20060102"), token.DailyQuotaLimit, 0)
+			if errors.Is(err, model.ErrTokenDailyQuotaLimit) {
+				abortWithOpenAiMessage(c, http.StatusForbidden, i18n.T(c, "quota.token_daily_limit", map[string]any{"Limit": logger.FormatQuota(token.DailyQuotaLimit)}), types.ErrorCode("daily_quota_limit"))
+				return
+			}
+			if err != nil {
+				common.SysError(err.Error())
+				abortWithOpenAiMessage(c, http.StatusInternalServerError, i18n.T(c, i18n.MsgDatabaseError))
+				return
+			}
+		}
 		c.Next()
 	}
 }
@@ -679,6 +692,7 @@ func SetupContextForToken(c *gin.Context, token *model.Token, parts ...string) e
 	c.Set("token_key", token.Key)
 	c.Set("token_name", token.Name)
 	c.Set("token_unlimited_quota", token.UnlimitedQuota)
+	common.SetContextKey(c, constant.ContextKeyTokenDailyQuotaLimit, token.DailyQuotaLimit)
 	if !token.UnlimitedQuota {
 		c.Set("token_quota", token.RemainQuota)
 	}

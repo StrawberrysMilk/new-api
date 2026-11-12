@@ -86,6 +86,15 @@ export function parseStreamMessageUpdates(data: string): StreamMessageUpdate[] {
   return updates
 }
 
+export function parseStreamErrorEvent(data: string): StreamErrorDetails | null {
+  try {
+    const parsed = JSON.parse(data) as StreamErrorPayload
+    return parsed?.error ? parseStreamErrorDetails(data) : null
+  } catch {
+    return null
+  }
+}
+
 export function isStreamDoneMessage(data: string): boolean {
   return data === STREAM_DONE_MESSAGE
 }

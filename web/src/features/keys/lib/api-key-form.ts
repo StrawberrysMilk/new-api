@@ -36,6 +36,11 @@ export function getApiKeyFormSchema(t: TFunction, maxAutoGroups = 5) {
     .object({
       name: z.string().min(1, t('Please enter a name')),
       remain_quota_dollars: z.number().optional(),
+      daily_quota_limit_dollars: z
+        .number()
+        .finite()
+        .min(0, t('Quota must be zero or greater'))
+        .optional(),
       expired_time: z.date().nullable(),
       unlimited_quota: z.boolean(),
       model_limits: z.array(z.string()),
@@ -107,6 +112,7 @@ export type ApiKeyFormValues = z.infer<ReturnType<typeof getApiKeyFormSchema>>
 export const API_KEY_FORM_DEFAULT_VALUES: ApiKeyFormValues = {
   name: '',
   remain_quota_dollars: 10,
+  daily_quota_limit_dollars: 0,
   expired_time: null,
   unlimited_quota: true,
   model_limits: [],
@@ -150,6 +156,9 @@ export function transformFormDataToPayload(
       ? Math.floor(data.expired_time.getTime() / 1000)
       : -1,
     unlimited_quota: data.unlimited_quota,
+    daily_quota_limit: parseQuotaFromDollars(
+      data.daily_quota_limit_dollars || 0
+    ),
     model_limits_enabled: data.model_limits.length > 0,
     model_limits: data.model_limits.join(','),
     allow_ips: data.allow_ips || '',
@@ -186,6 +195,9 @@ export function transformApiKeyToFormDefaults(
     expired_time:
       apiKey.expired_time > 0 ? new Date(apiKey.expired_time * 1000) : null,
     unlimited_quota: apiKey.unlimited_quota,
+    daily_quota_limit_dollars: quotaUnitsToDollars(
+      apiKey.daily_quota_limit || 0
+    ),
     model_limits: apiKey.model_limits
       ? apiKey.model_limits.split(',').filter(Boolean)
       : [],

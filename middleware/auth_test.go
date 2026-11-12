@@ -114,6 +114,54 @@ func TestTokenAuthReadOnlyTranslatesErrors(t *testing.T) {
 	}
 }
 
+func TestTokenAuthDailyQuotaRejectsBeforeUpstream(t *testing.T) {
+	setupDashboardAuthMiddlewareTest(t)
+	// Initialize the dialect's quoted column names through the real startup path.
+	previousDB := model.DB
+	previousPath, previousMaster := common.SQLitePath, common.IsMasterNode
+	t.Setenv("SQL_DSN", "")
+	common.SQLitePath, common.IsMasterNode = ":memory:", false
+	require.NoError(t, model.InitDB())
+	startupDB, err := model.DB.DB()
+	require.NoError(t, err)
+	require.NoError(t, startupDB.Close())
+	model.DB = previousDB
+	common.SQLitePath, common.IsMasterNode = previousPath, previousMaster
+	require.NoError(t, i18n.Init())
+	require.NoError(t, model.DB.AutoMigrate(&model.Token{}, &model.TokenDailyQuota{}))
+	user := createMiddlewarePATUser(t, "daily-limit-user", "unused-dashboard-key")
+	key := strings.Repeat("d", 48)
+	token := model.Token{UserId: user.Id, Key: key, Status: common.TokenStatusEnabled, ExpiredTime: -1, UnlimitedQuota: true, DailyQuotaLimit: 100}
+	require.NoError(t, model.DB.Create(&token).Error)
+	day := time.Now().Format("20060102")
+	require.NoError(t, model.ReserveTokenDailyQuota(token.Id, day, 100, 100))
+	upstreamCalls := 0
+	router := gin.New()
+	router.POST("/v1/chat/completions", TokenAuth(), func(c *gin.Context) {
+		upstreamCalls++
+		c.Status(http.StatusOK)
+	})
+	for _, language := range []string{"en", "zh-CN"} {
+		request := httptest.NewRequest(http.MethodPost, "/v1/chat/completions", nil)
+		request.Header.Set("Authorization", "Bearer sk-"+key)
+		request.Header.Set("Accept-Language", language)
+		response := httptest.NewRecorder()
+		router.ServeHTTP(response, request)
+		assert.Equal(t, http.StatusForbidden, response.Code, response.Body.String())
+		assert.Contains(t, response.Body.String(), `"code":"daily_quota_limit"`)
+		assert.NotContains(t, response.Body.String(), "quota.token_daily_limit")
+	}
+	assert.Zero(t, upstreamCalls)
+	// Yesterday's usage must not block today, without restarting the process.
+	require.NoError(t, model.DB.Model(&model.TokenDailyQuota{}).Where("token_id = ?", token.Id).Update("day", time.Now().AddDate(0, 0, -1).Format("20060102")).Error)
+	request := httptest.NewRequest(http.MethodPost, "/v1/chat/completions", nil)
+	request.Header.Set("Authorization", "Bearer sk-"+key)
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, request)
+	assert.Equal(t, http.StatusOK, response.Code, response.Body.String())
+	assert.Equal(t, 1, upstreamCalls)
+}
+
 func TestUserAuthAllowsOpaqueDottedPAT(t *testing.T) {
 	setupDashboardAuthMiddlewareTest(t)
 	user := createMiddlewarePATUser(t, "dotted-pat-user", "opaque.key.with-dots")

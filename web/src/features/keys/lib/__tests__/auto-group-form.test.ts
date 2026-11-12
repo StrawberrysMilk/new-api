@@ -183,6 +183,24 @@ describe('API key Auto group form mapping', () => {
 })
 
 describe('API key user quota query form mapping', () => {
+  test('daily limits round trip independently of unlimited quota and Auto groups', () => {
+    const original = { ...baseApiKey, daily_quota_limit: 5000000 }
+    const defaults = transformApiKeyToFormDefaults(original)
+    const payload = transformFormDataToPayload(defaults)
+    expect(payload.daily_quota_limit).toBe(5000000)
+    expect(payload.unlimited_quota).toBe(true)
+    expect(payload.auto_groups).toEqual([])
+    expect(
+      transformFormDataToPayload(getApiKeyFormDefaultValues(true))
+        .daily_quota_limit
+    ).toBe(0)
+    expect(
+      getApiKeyFormSchema(t).safeParse({
+        ...defaults,
+        daily_quota_limit_dollars: -1,
+      }).success
+    ).toBe(false)
+  })
   test('lets a new key query the user quota by default', () => {
     for (const defaultUseAutoGroup of [true, false]) {
       const defaults = getApiKeyFormDefaultValues(defaultUseAutoGroup)

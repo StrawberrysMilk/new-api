@@ -109,9 +109,10 @@ func (m Properties) Value() (driver.Value, error) {
 }
 
 type TaskPrivateData struct {
-	Key            string `json:"key,omitempty"`
-	UpstreamTaskID string `json:"upstream_task_id,omitempty"` // 上游真实 task ID
-	ResultURL      string `json:"result_url,omitempty"`       // 任务成功后的结果 URL（视频地址等）
+	TokenDailyQuotaDay string `json:"token_daily_quota_day,omitempty"`
+	Key                string `json:"key,omitempty"`
+	UpstreamTaskID     string `json:"upstream_task_id,omitempty"` // 上游真实 task ID
+	ResultURL          string `json:"result_url,omitempty"`       // 任务成功后的结果 URL（视频地址等）
 	// Execution records safe, immutable request provenance. It lives next to
 	// other private task state so public task DTOs cannot expose it by accident.
 	Execution *TaskExecutionSnapshot `json:"execution,omitempty"`
@@ -212,7 +213,7 @@ func (p *TaskPrivateData) Scan(val any) error {
 func (p TaskPrivateData) Value() (driver.Value, error) {
 	if p.Key == "" && p.UpstreamTaskID == "" && p.ResultURL == "" &&
 		p.Execution == nil && p.BillingSource == "" && p.SubscriptionId == 0 &&
-		p.TokenId == 0 && p.NodeName == "" && p.BillingContext == nil &&
+		p.TokenId == 0 && p.TokenDailyQuotaDay == "" && p.NodeName == "" && p.BillingContext == nil &&
 		!p.ResponsesBackground && len(p.PluginState) == 0 && p.PollFailures == 0 &&
 		!p.ResultDiscarded {
 		return nil, nil

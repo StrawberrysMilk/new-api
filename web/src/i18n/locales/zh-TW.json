@@ -1,5 +1,8 @@
 {
   "translation": {
+    "Daily spending limit ({{currency}})": "每日消費限額（{{currency}}）",
+    "Set to 0 for no daily limit. Resets at server midnight and applies even with unlimited quota.": "設為 0 表示不限制。按伺服器時間每日零點重置，開啟無限額度時仍然生效。",
+    "Daily spending limit is outside the valid range": "每日消費限額超出有效範圍",
     "360": "360",
     "1000": "1000",
     "10000": "10000",

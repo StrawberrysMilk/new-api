@@ -27,6 +27,7 @@ import {
   isStreamClosedReadyState,
   isStreamDoneMessage,
   parseStreamErrorDetails,
+  parseStreamErrorEvent,
   parseStreamMessageUpdates,
 } from '../lib'
 import type { ChatCompletionRequest } from '../types'
@@ -121,6 +122,11 @@ export function createStreamRequestController(
       }
 
       try {
+        const streamError = parseStreamErrorEvent(data)
+        if (streamError) {
+          handleError(streamError.errorMessage, streamError.errorCode)
+          return
+        }
         const updates = parseStreamMessageUpdates(data)
 
         for (const update of updates) {

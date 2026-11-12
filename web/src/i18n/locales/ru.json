@@ -1,5 +1,8 @@
 {
   "translation": {
+    "Daily spending limit ({{currency}})": "Дневной лимит расходов ({{currency}})",
+    "Set to 0 for no daily limit. Resets at server midnight and applies even with unlimited quota.": "0 отключает дневной лимит. Сброс в полночь по времени сервера, действует и при неограниченной квоте.",
+    "Daily spending limit is outside the valid range": "Дневной лимит расходов вне допустимого диапазона",
     "360": "360",
     "1000": "1000",
     "10000": "10000",

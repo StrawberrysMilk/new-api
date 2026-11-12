@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/QuantumNous/new-api/common"
+	"github.com/QuantumNous/new-api/constant"
 	"github.com/QuantumNous/new-api/logger"
 	"github.com/QuantumNous/new-api/relaykit/dto"
 	"github.com/QuantumNous/new-api/relaykit/types"
@@ -242,6 +243,10 @@ func StringData(c *gin.Context, str string) error {
 
 	if requestContextDone(c) {
 		return fmt.Errorf("request context done: %w", c.Request.Context().Err())
+	}
+	if str == "[DONE]" && common.GetContextKeyBool(c, constant.ContextKeyDailyQuotaDeferDone) {
+		common.SetContextKey(c, constant.ContextKeyDailyQuotaPendingDone, true)
+		return nil
 	}
 
 	c.Render(-1, common.CustomEvent{Data: "data: " + str})

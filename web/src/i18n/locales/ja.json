@@ -1,5 +1,8 @@
 {
   "translation": {
+    "Daily spending limit ({{currency}})": "1日の利用上限（{{currency}}）",
+    "Set to 0 for no daily limit. Resets at server midnight and applies even with unlimited quota.": "0 は日次制限なし。サーバー時刻の午前0時にリセットされ、無制限クォータでも適用されます。",
+    "Daily spending limit is outside the valid range": "1日の利用上限が有効範囲外です",
     "360": "360",
     "1000": "1000",
     "10000": "10000",

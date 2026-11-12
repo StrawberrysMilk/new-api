@@ -227,6 +227,11 @@ describe('API keys mutate drawer Auto group integration', () => {
 
     changeInput(getControlByLabel('Name'), 'batch')
     changeInput(getControlByLabel('Quantity'), '2')
+    const dailyLimit = screen.getByRole<HTMLInputElement>('spinbutton', {
+      name: /Daily spending limit/,
+    })
+    expect(dailyLimit).toBeEnabled()
+    changeInput(dailyLimit, '5')
     fireEvent.click(findButton('Save changes', true))
     await waitFor(() => expect(createdPayloads).toHaveLength(2))
 
@@ -236,6 +241,8 @@ describe('API keys mutate drawer Auto group integration', () => {
       expect(payload.group).toBe('auto')
       expect(payload.auto_groups).toEqual([])
       expect(payload.cross_group_retry).toBe(true)
+      expect(payload.daily_quota_limit).toBeGreaterThan(0)
+      expect(payload.unlimited_quota).toBe(true)
     }
   })
 

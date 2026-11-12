@@ -12,6 +12,7 @@ const (
 
 	/* token related keys */
 	ContextKeyTokenUnlimited         ContextKey = "token_unlimited_quota"
+	ContextKeyTokenDailyQuotaLimit   ContextKey = "token_daily_quota_limit"
 	ContextKeyTokenKey               ContextKey = "token_key"
 	ContextKeyTokenId                ContextKey = "token_id"
 	ContextKeyTokenGroup             ContextKey = "token_group"
@@ -84,5 +85,7 @@ const (
 	// ContextKeyTokenAuditParams contains only the API token operation's safe metadata.
 	ContextKeyTokenAuditParams ContextKey = "token_audit_params"
 	// ContextKeyTokenAuditSucceeded disambiguates token responses that exceed the audit buffer.
-	ContextKeyTokenAuditSucceeded ContextKey = "token_audit_succeeded"
+	ContextKeyTokenAuditSucceeded   ContextKey = "token_audit_succeeded"
+	ContextKeyDailyQuotaDeferDone   ContextKey = "daily_quota_defer_done"
+	ContextKeyDailyQuotaPendingDone ContextKey = "daily_quota_pending_done"
 )

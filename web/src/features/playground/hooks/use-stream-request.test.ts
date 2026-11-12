@@ -78,6 +78,28 @@ const noopCallbacks = {
 }
 
 describe('latest-wins stream request coordination', () => {
+  test('daily quota SSE errors stop the stream and surface the server message', async () => {
+    const source = new FakeStreamSource()
+    const errors: string[] = []
+    const controller = createStreamRequestController({
+      getHeaders: async () => ({}),
+      createSource: () => source,
+      setStreaming: () => undefined,
+    })
+    await controller.send(payload, {
+      ...noopCallbacks,
+      onError: (message) => errors.push(message),
+    })
+    source.emit(
+      'message',
+      JSON.stringify({
+        error: { message: 'Daily limit reached', code: 'daily_quota_limit' },
+      })
+    )
+    source.emit('message', '[DONE]')
+    expect(errors).toEqual(['Daily limit reached'])
+    expect(source.closed).toBe(true)
+  })
   test('only creates a stream for the latest header request', async () => {
     const firstHeaders = deferred<Record<string, string>>()
     const secondHeaders = deferred<Record<string, string>>()

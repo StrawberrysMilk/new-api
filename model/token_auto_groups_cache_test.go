@@ -11,18 +11,20 @@ import (
 func TestTokenAutoGroupsRoundTripThroughRedisHashCache(t *testing.T) {
 	useUserCacheMiniRedis(t)
 	token := Token{
-		Id:         42,
-		UserId:     7,
-		Key:        "token-auto-groups-cache-key",
-		Name:       "auto-cache",
-		Group:      "auto",
-		AutoGroups: `["vip","default"]`,
+		Id:              42,
+		UserId:          7,
+		Key:             "token-auto-groups-cache-key",
+		Name:            "auto-cache",
+		Group:           "auto",
+		AutoGroups:      `["vip","default"]`,
+		DailyQuotaLimit: 500,
 	}
 
 	require.NoError(t, cacheSetTokenForTest(token))
 	cached, err := cacheGetTokenByKey(token.Key)
 	require.NoError(t, err)
 	assert.Equal(t, token.AutoGroups, cached.AutoGroups)
+	assert.Equal(t, 500, cached.DailyQuotaLimit)
 	groups, err := cached.GetAutoGroups()
 	require.NoError(t, err)
 	assert.Equal(t, []string{"vip", "default"}, groups)
@@ -54,6 +56,7 @@ func TestTokenUpdateSynchronouslyNarrowsPreheatedAutoGroupsCache(t *testing.T) {
 		Group:           "auto",
 		CrossGroupRetry: true,
 		AutoGroups:      `["default","vip"]`,
+		DailyQuotaLimit: 500,
 	}
 	require.NoError(t, token.Insert())
 	require.NoError(t, cacheSetTokenForTest(token))
@@ -63,6 +66,7 @@ func TestTokenUpdateSynchronouslyNarrowsPreheatedAutoGroupsCache(t *testing.T) {
 	assert.JSONEq(t, `["default","vip"]`, preheated.AutoGroups)
 
 	require.NoError(t, token.SetAutoGroups([]string{"vip"}))
+	token.DailyQuotaLimit = 0
 	require.NoError(t, token.Update())
 	// Update 是限制性变更：写库前删除缓存并设置 fence。缓存不再提供旧的
 	// 宽分组值，下一次读取必须看到收紧后的分组。
@@ -71,6 +75,7 @@ func TestTokenUpdateSynchronouslyNarrowsPreheatedAutoGroupsCache(t *testing.T) {
 	reloaded, err := GetTokenByKey(token.Key, false)
 	require.NoError(t, err)
 	assert.JSONEq(t, `["vip"]`, reloaded.AutoGroups)
+	assert.Zero(t, reloaded.DailyQuotaLimit)
 }
 
 // cacheSetTokenForTest 以测试身份写入完整 token 缓存（含额度字段），

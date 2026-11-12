@@ -129,6 +129,11 @@ func taskAdjustTokenQuota(ctx context.Context, task *model.Task, delta int) {
 	if task.PrivateData.TokenId <= 0 || delta == 0 {
 		return
 	}
+	if day := task.PrivateData.TokenDailyQuotaDay; day != "" {
+		if err := model.AdjustTokenDailyQuota(task.PrivateData.TokenId, day, delta); err != nil {
+			logger.LogError(ctx, fmt.Sprintf("daily quota adjustment failed for task %s: %s", task.TaskID, err))
+		}
+	}
 	tokenKey := resolveTokenKey(ctx, task.PrivateData.TokenId, task.TaskID)
 	if tokenKey == "" {
 		return

@@ -1,5 +1,8 @@
 {
   "translation": {
+    "Daily spending limit ({{currency}})": "Giới hạn chi tiêu hằng ngày ({{currency}})",
+    "Set to 0 for no daily limit. Resets at server midnight and applies even with unlimited quota.": "Đặt 0 để không giới hạn. Đặt lại lúc nửa đêm theo giờ máy chủ, áp dụng cả với hạn ngạch không giới hạn.",
+    "Daily spending limit is outside the valid range": "Giới hạn chi tiêu hằng ngày ngoài phạm vi hợp lệ",
     "360": "360",
     "1000": "1000",
     "10000": "10000",

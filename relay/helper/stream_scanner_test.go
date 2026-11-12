@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/constant"
 	relaycommon "github.com/QuantumNous/new-api/relay/common"
 	"github.com/QuantumNous/new-api/setting/operation_setting"
@@ -723,4 +724,18 @@ func TestSetEventStreamHeadersBoundsStreamWritesByBudget(t *testing.T) {
 	require.NotEmpty(t, recorder.deadlines)
 	assert.False(t, recorder.deadlines[0].Before(before.Add(streamWriteTimeout+450*time.Second)))
 	assert.Contains(t, recorder.Body.String(), "data: AAAA")
+}
+
+func TestDailyQuotaStreamDefersDoneUntilSettlement(t *testing.T) {
+	for _, limited := range []bool{false, true} {
+		writer := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(writer)
+		c.Request = httptest.NewRequest(http.MethodPost, "/v1/chat/completions", nil)
+		common.SetContextKey(c, constant.ContextKeyDailyQuotaDeferDone, limited)
+		require.NoError(t, StringData(c, `{"choices":[]}`))
+		Done(c)
+		assert.Contains(t, writer.Body.String(), `data: {"choices":[]}`)
+		assert.Equal(t, limited, common.GetContextKeyBool(c, constant.ContextKeyDailyQuotaPendingDone))
+		assert.Equal(t, !limited, strings.Contains(writer.Body.String(), "data: [DONE]"))
+	}
 }

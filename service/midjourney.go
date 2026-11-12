@@ -105,6 +105,12 @@ func RefundMidjourneyQuota(ctx context.Context, task *model.Midjourney, reason s
 	}
 
 	if task.TokenId > 0 {
+		if task.SubmitTime > 0 {
+			day := time.UnixMilli(task.SubmitTime).In(time.Local).Format("20060102")
+			if err := model.AdjustTokenDailyQuota(task.TokenId, day, -quota); err != nil {
+				logger.LogError(ctx, fmt.Sprintf("daily quota refund failed for Midjourney task %s: %s", task.MjId, err))
+			}
+		}
 		tokenKey := resolveTokenKey(ctx, task.TokenId, task.MjId)
 		if tokenKey != "" {
 			if err := model.IncreaseTokenQuota(task.TokenId, tokenKey, quota); err != nil {

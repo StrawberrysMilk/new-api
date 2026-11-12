@@ -28,17 +28,18 @@ import (
 // BillingSession 封装单次请求的预扣费/结算/退款生命周期。
 // 实现 relaycommon.BillingSettler 接口。
 type BillingSession struct {
-	relayInfo        *relaycommon.RelayInfo
-	funding          FundingSource
-	preConsumedQuota int    // 实际预扣额度（信任用户可能为 0）
-	tokenConsumed    int    // 令牌额度实际扣减量
-	extraReserved    int    // 发送前补充预扣的额度（订阅退款时需要单独回滚）
-	trusted          bool   // 是否命中信任额度旁路
-	fundingSettled   bool   // funding.Settle 已成功，资金来源已提交
-	settled          bool   // Settle 全部完成（资金 + 令牌）
-	refunded         bool   // Refund 已调用
-	lang             string // 请求声明的语言，为空表示未声明
-	mu               sync.Mutex
+	relayInfo          *relaycommon.RelayInfo
+	funding            FundingSource
+	preConsumedQuota   int    // 实际预扣额度（信任用户可能为 0）
+	tokenConsumed      int    // 令牌额度实际扣减量
+	extraReserved      int    // 发送前补充预扣的额度（订阅退款时需要单独回滚）
+	trusted            bool   // 是否命中信任额度旁路
+	fundingSettled     bool   // funding.Settle 已成功，资金来源已提交
+	settled            bool   // Settle 全部完成（资金 + 令牌）
+	refunded           bool   // Refund 已调用
+	lang               string // 请求声明的语言，为空表示未声明
+	dailyQuotaReserved int
+	mu                 sync.Mutex
 }
 
 // Settle 根据实际消耗额度进行结算。
@@ -50,6 +51,8 @@ func (s *BillingSession) Settle(actualQuota int) error {
 	if s.settled {
 		return nil
 	}
+	// Actual usage must still be charged when it exceeds the daily reservation.
+	// The daily limit only gates requests/reservations before upstream work.
 	delta := actualQuota - s.preConsumedQuota
 	if delta == 0 {
 		s.settled = true
@@ -76,12 +79,24 @@ func (s *BillingSession) Settle(actualQuota int) error {
 				s.relayInfo.UserId, s.relayInfo.TokenId, delta, tokenErr.Error()))
 		}
 	}
+	dailyErr := adjustTokenDailyQuota(s.relayInfo, actualQuota-s.dailyQuotaReserved)
 	// 3) 更新 relayInfo 上的订阅 PostDelta（用于日志）
 	if s.funding.Source() == BillingSourceSubscription {
 		s.relayInfo.SubscriptionPostDelta += int64(delta)
 	}
 	s.settled = true
-	return tokenErr
+	if tokenErr != nil {
+		return tokenErr
+	}
+	if dailyErr != nil {
+		return dailyErr
+	}
+	if s.relayInfo.TokenDailyQuotaLimit > 0 && s.dailyQuotaReserved < actualQuota {
+		if err := reserveTokenDailyQuota(s.relayInfo, 0); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // Refund 退还所有预扣费，幂等安全，异步执行。
@@ -108,8 +123,12 @@ func (s *BillingSession) Refund(c *gin.Context) {
 	extraReserved := s.extraReserved
 	subscriptionId := s.relayInfo.SubscriptionId
 	funding := s.funding
+	dailyReserved := s.dailyQuotaReserved
 
 	gopool.Go(func() {
+		if err := adjustTokenDailyQuota(s.relayInfo, -dailyReserved); err != nil {
+			common.SysError(err.Error())
+		}
 		// 1) 退还资金来源
 		if err := funding.Refund(); err != nil {
 			common.SysLog(common.LogText("error refunding billing source: %s", err.Error()))
@@ -180,6 +199,17 @@ func (s *BillingSession) reserve(targetQuota int, requireAvailableQuota bool) er
 	if delta <= 0 {
 		return nil
 	}
+	if err := reserveTokenDailyQuota(s.relayInfo, delta); err != nil {
+		return types.NewErrorWithStatusCode(err, types.ErrorCodePreConsumeTokenQuotaFailed, http.StatusForbidden, types.ErrOptionWithSkipRetry())
+	}
+	committed := false
+	defer func() {
+		if !committed {
+			if err := adjustTokenDailyQuota(s.relayInfo, -delta); err != nil {
+				common.SysError(err.Error())
+			}
+		}
+	}()
 
 	if err := s.reserveFunding(delta, requireAvailableQuota); err != nil {
 		return err
@@ -188,6 +218,8 @@ func (s *BillingSession) reserve(targetQuota int, requireAvailableQuota bool) er
 		s.rollbackFundingReserve(delta)
 		return err
 	}
+	committed = true
+	s.dailyQuotaReserved += delta
 
 	s.preConsumedQuota += delta
 	s.tokenConsumed += delta
@@ -207,6 +239,19 @@ func (s *BillingSession) reserve(targetQuota int, requireAvailableQuota bool) er
 // 任一步骤失败时原子回滚已完成的步骤。
 func (s *BillingSession) preConsume(c *gin.Context, quota int) *types.NewAPIError {
 	effectiveQuota := quota
+	if err := reserveTokenDailyQuota(s.relayInfo, quota); err != nil {
+		return types.NewErrorWithStatusCode(err, types.ErrorCodePreConsumeTokenQuotaFailed, http.StatusForbidden, types.ErrOptionWithSkipRetry())
+	}
+	s.dailyQuotaReserved = quota
+	committed := false
+	defer func() {
+		if !committed {
+			if err := adjustTokenDailyQuota(s.relayInfo, -s.dailyQuotaReserved); err != nil {
+				common.SysError(err.Error())
+			}
+			s.dailyQuotaReserved = 0
+		}
+	}()
 
 	// ---- 信任额度旁路 ----
 	if s.shouldTrust(c) {
@@ -254,6 +299,7 @@ func (s *BillingSession) preConsume(c *gin.Context, quota int) *types.NewAPIErro
 	}
 
 	s.preConsumedQuota = effectiveQuota
+	committed = true
 
 	// ---- 同步 RelayInfo 兼容字段 ----
 	s.syncRelayInfo()
@@ -327,6 +373,9 @@ func (s *BillingSession) reserveToken(delta int) error {
 
 // shouldTrust 统一信任额度检查，适用于钱包和订阅。
 func (s *BillingSession) shouldTrust(c *gin.Context) bool {
+	if s.relayInfo.TokenDailyQuotaLimit > 0 {
+		return false
+	}
 	// 异步任务（ForcePreConsume=true）必须预扣全额，不允许信任旁路
 	if s.relayInfo.ForcePreConsume {
 		return false
